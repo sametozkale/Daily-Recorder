@@ -50,10 +50,12 @@ export function Lifeline(props: LifelineProps) {
           className={
             props.mode === "embed"
               ? cn(
-                  "lifeline-typeset h-full overflow-y-auto pt-5",
+                  "lifeline-typeset h-full min-h-0 overflow-y-auto overscroll-y-contain",
                   props.className,
                 )
-              : "lifeline-typeset pt-5"
+              : // Page mode: grow with content so LifelineStage owns scrolling.
+                // Don't take `h-full` or the list clips inside the stage.
+                "lifeline-typeset"
           }
         >
           <LifelineVertical {...props} />

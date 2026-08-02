@@ -202,22 +202,27 @@ export function ProviderCardStack({
 
   if (cards.length === 0) return null
 
+  // Vertical / touch: fill the content column so 258px cards don't overflow
+  // narrow phones. Desktop hover stack keeps the fixed Figma width.
+  const fluid = forceExpanded
+
   return (
     <div
       ref={rootRef}
       className={cn(
         "provider-card-stack relative mb-3",
         forceExpanded && "provider-card-stack--expanded",
+        fluid && "w-full max-w-[258px]",
         className,
       )}
       style={
         {
-          width: collapsedW,
+          width: fluid ? undefined : collapsedW,
           "--stack-collapsed": `${collapsedH}px`,
           "--stack-expanded": `${expandedH}px`,
           "--stack-scroll-h": `${scrollContentH}px`,
-          "--stack-collapsed-w": `${collapsedW}px`,
-          "--stack-expanded-w": `${CARD_WIDTH}px`,
+          "--stack-collapsed-w": fluid ? "100%" : `${collapsedW}px`,
+          "--stack-expanded-w": fluid ? "100%" : `${CARD_WIDTH}px`,
           "--stack-max": PROVIDER_STACK_MAX,
           "--card-h": `${CARD_HEIGHT}px`,
           "--stack-gap": `${STACK_GAP}px`,
@@ -236,7 +241,7 @@ export function ProviderCardStack({
                 className="provider-card-stack__card group/card absolute left-0 top-0 rounded-2xl bg-[#fafafa] shadow-[0_8px_24px_-12px_rgb(0_0_0/0.18)] ring-1 ring-black/5 transition-[transform,box-shadow,width] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] dark:bg-zinc-900 dark:ring-white/10"
                 style={
                   {
-                    width: CARD_WIDTH,
+                    width: fluid ? "100%" : CARD_WIDTH,
                     height: CARD_HEIGHT,
                     zIndex: count - index,
                     "--i": index,

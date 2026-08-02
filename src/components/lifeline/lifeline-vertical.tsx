@@ -217,6 +217,7 @@ const LifelineVerticalEntry = forwardRef<
       ref={ref}
       className={hasContent ? "pb-10" : "pb-3"}
       aria-label={marker.label ?? `${marker.year}`}
+      data-lifeline-day={isIsoDateId(marker.id) ? marker.id : undefined}
     >
       <div
         className={cn(
@@ -392,9 +393,8 @@ export function LifelineVertical({
     return () => window.clearTimeout(timeout)
   }, [markers])
 
-  const { sectionRef, setEntryRef, isLayoutReady } = useLifelineVerticalScroll(
-    markers.length,
-    {
+  const { sectionRef, setEntryRef, isLayoutReady, todayNav, scrollToToday } =
+    useLifelineVerticalScroll(markers.length, {
       isEmbed,
       introLocked: isIntroAnimating,
       introAnimating: isIntroAnimating,
@@ -405,8 +405,7 @@ export function LifelineVertical({
       introGetTrackProgress: intro.getTrackProgressAtTime,
       onIntroScrollStart: intro.startIntroTimer,
       onIntroSettleComplete: intro.completeIntro,
-    },
-  )
+    })
 
   const showIntro = isIntroAnimating && isLayoutReady && !isEmbed
   const revealOnScroll = markers.length > MAX_ARMED_ENTRIES
@@ -476,7 +475,8 @@ export function LifelineVertical({
       ref={sectionRef}
       aria-label={title}
       className={cn(
-        "relative select-none px-6 pb-10 pt-4 [&_a]:cursor-pointer",
+        // Extra top pad clears fixed corner name/actions on small screens.
+        "relative select-none px-4 pb-24 pt-2 sm:px-6 [&_a]:cursor-pointer",
         !isLayoutReady && "invisible",
       )}
       style={showIntro ? introStyle : undefined}
@@ -520,6 +520,39 @@ export function LifelineVertical({
           ))}
         </ol>
       </div>
+
+      {todayNav && !showIntro ? (
+        <button
+          type="button"
+          onClick={scrollToToday}
+          data-lifeline-interactive=""
+          className={cn(
+            "pointer-events-auto fixed bottom-6 z-40 inline-flex items-center gap-1.5",
+            "rounded-2xl bg-white px-3 py-2 font-runde text-xs font-medium tracking-[-2%] text-zinc-700",
+            "shadow-[0_8px_24px_-12px_rgb(0_0_0/0.22)] ring-1 ring-[#f4f4f4]",
+            "transition-[color,background-color] duration-200",
+            "hover:bg-zinc-50 hover:text-black",
+            "dark:bg-zinc-900 dark:text-zinc-200 dark:ring-white/10 dark:hover:bg-zinc-800 dark:hover:text-white",
+            todayNav === "past" ? "left-4" : "right-4",
+          )}
+        >
+          {todayNav === "future" ? (
+            <Icon
+              icon={AppIcons.chevronUp}
+              size={14}
+              className="text-zinc-400"
+            />
+          ) : null}
+          Today
+          {todayNav === "past" ? (
+            <Icon
+              icon={AppIcons.chevronDown}
+              size={14}
+              className="text-zinc-400"
+            />
+          ) : null}
+        </button>
+      ) : null}
     </article>
   )
 }
