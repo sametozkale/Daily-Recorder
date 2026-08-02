@@ -1,0 +1,15 @@
+{
+  "redirects": [
+    {
+      "source": "/:path*",
+      "has": [
+        {
+          "type": "host",
+          "value": "daily-lifeline-oberyon.vercel.app"
+        }
+      ],
+      "destination": "https://daily-lifeline.vercel.app/:path*",
+      "permanent": false
+    }
+  ]
+}
