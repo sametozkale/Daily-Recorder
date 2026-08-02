@@ -241,6 +241,12 @@
     font-family: var(--lifeline-font);
 }
 
+  /* Landing embed: let activity stacks paint/scroll past the short stage
+     down to the viewport bottom (horizontal bleed still clipped). */
+  .landing-lifeline [data-lifeline-mode="embed"] {
+    overflow: visible;
+  }
+
   /* Activity cards: fan at rest → vertical list on day hover.
      Desktop hover expands out of flow so the marker/track height (and the
      centered rail) never change. Vertical / forceExpanded stays in flow.

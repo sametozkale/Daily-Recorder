@@ -22,6 +22,7 @@ export function LifelineDesktop({
   className,
   title = "Lifeline",
   mode = "auto",
+  align = "center",
 }: LifelineProps) {
   const widths = useMemo(
     () =>
@@ -133,8 +134,16 @@ export function LifelineDesktop({
         back to start if a column would overflow the stage top.
       */}
       <div
-        className="flex h-full items-center overflow-hidden"
-        style={{ alignItems: "safe center" }}
+        className={cn(
+          "flex h-full",
+          // Landing embeds opt into overflow-visible so card stacks can
+          // extend to the viewport bottom; everywhere else keep the clip.
+          className?.includes("overflow-visible")
+            ? "overflow-visible"
+            : "overflow-hidden",
+          align === "start" ? "items-start pt-1" : "items-center",
+        )}
+        style={align === "center" ? { alignItems: "safe center" } : undefined}
       >
         <div
           ref={trackRef}

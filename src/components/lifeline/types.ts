@@ -120,4 +120,10 @@ export interface LifelineProps {
   className?: string
   title?: string
   mode?: LifelineMode
+  /**
+   * Vertical alignment of the rail inside the stage.
+   * `"start"` leaves the space below for expanding activity stacks
+   * (useful in short embeds like the landing preview).
+   */
+  align?: "center" | "start"
 }

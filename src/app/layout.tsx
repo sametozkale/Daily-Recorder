@@ -10,7 +10,7 @@ import "./globals.css"
 export const metadata: Metadata = {
   title: "Daily Lifeline",
   description:
-    "Design engineer daily activity lifeline — log design, code, and PRs; share a public timeline.",
+    "When they ask how your day went, show them the rail — log your day and share a public lifeline with your team.",
 }
 
 export default function RootLayout({

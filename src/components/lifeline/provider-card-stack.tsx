@@ -179,6 +179,9 @@ export function ProviderCardStack({
 
     const updateMax = () => {
       const top = el.getBoundingClientRect().top
+      // Grow the scroll viewport to the bottom of the screen so stacked
+      // cards can be scrolled through the remaining viewport, not only
+      // the short embed stage.
       const available = Math.max(
         collapsedH,
         window.innerHeight - top - PROVIDER_STACK_VIEWPORT_PAD,
@@ -189,6 +192,7 @@ export function ProviderCardStack({
     updateMax()
     const frame = requestAnimationFrame(updateMax)
     window.addEventListener("resize", updateMax)
+    window.addEventListener("scroll", updateMax, true)
 
     const observer = new ResizeObserver(updateMax)
     observer.observe(el)
@@ -196,6 +200,7 @@ export function ProviderCardStack({
     return () => {
       cancelAnimationFrame(frame)
       window.removeEventListener("resize", updateMax)
+      window.removeEventListener("scroll", updateMax, true)
       observer.disconnect()
     }
   }, [collapsedH, count])
