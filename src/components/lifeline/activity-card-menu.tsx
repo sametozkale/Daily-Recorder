@@ -20,7 +20,7 @@ export function ActivityCardMenu({ activityId }: { activityId: string }) {
       <DropdownMenuTrigger
         data-lifeline-interactive=""
         aria-label="Activity options"
-        className="inline-flex size-6 shrink-0 items-center justify-center rounded-xl text-zinc-400 opacity-0 outline-none transition-[opacity,color,background-color] hover:bg-black/5 hover:text-zinc-700 group-hover/card:opacity-100 data-popup-open:bg-black/5 data-popup-open:text-zinc-700 data-popup-open:opacity-100 [@media(hover:none)]:opacity-100 dark:hover:bg-white/10 dark:hover:text-zinc-200 dark:data-popup-open:bg-white/10 dark:data-popup-open:text-zinc-200"
+        className="inline-flex size-6 shrink-0 items-center justify-center rounded-[16px] text-zinc-400 opacity-0 outline-none transition-[opacity,color,background-color] hover:bg-black/5 hover:text-zinc-700 group-hover/card:opacity-100 data-popup-open:bg-black/5 data-popup-open:text-zinc-700 data-popup-open:opacity-100 [@media(hover:none)]:opacity-100 dark:hover:bg-white/10 dark:hover:text-zinc-200 dark:data-popup-open:bg-white/10 dark:data-popup-open:text-zinc-200"
         onClick={(event) => {
           event.preventDefault()
           event.stopPropagation()

@@ -115,7 +115,7 @@ function LifelineVerticalEvent({ event }: { event: LifelineEvent }) {
       <p
         ref={textRef}
         className={cn(
-          "max-w-[18rem] text-left text-[14px] leading-[1.55] tracking-[-0.01em]",
+          "w-full max-w-none text-left text-[14px] leading-[1.5] tracking-[-0.01em]",
           (image || effect) && "cursor-pointer",
         )}
         onClick={
@@ -216,7 +216,7 @@ const LifelineVerticalEntry = forwardRef<
   return (
     <li
       ref={ref}
-      className={hasContent ? "pb-10" : "pb-3"}
+      className={hasContent ? "pb-6" : "pb-2.5"}
       aria-label={marker.label ?? `${marker.year}`}
       data-lifeline-day={isIsoDateId(marker.id) ? marker.id : undefined}
     >
@@ -268,8 +268,11 @@ const LifelineVerticalEntry = forwardRef<
           )}
         </div>
 
-        {canSelectDay && !hasActivities ? (
-          <div className={`${GRID_CLASS} mt-3`}>
+        {canSelectDay &&
+        !hasActivities &&
+        providerPhotos.length === 0 &&
+        mediaPhotos.length === 0 ? (
+          <div className={`${GRID_CLASS} mt-2.5`}>
             <div aria-hidden="true" />
             <div className="flex justify-center">{addDayButton}</div>
             <div aria-hidden="true" />
@@ -277,7 +280,7 @@ const LifelineVerticalEntry = forwardRef<
         ) : null}
 
         {hasContent && (
-          <div className={`${GRID_CLASS} mt-6`}>
+          <div className={`${GRID_CLASS} mt-3`}>
             <div aria-hidden="true" />
             <div aria-hidden="true" />
             <div className="min-w-0 text-zinc-500 transition-colors duration-300 dark:text-zinc-400">
@@ -308,7 +311,7 @@ const LifelineVerticalEntry = forwardRef<
               )}
 
               {hasActivities && (
-                <div className="space-y-4">
+                <div className="space-y-3">
                   {marker.events.map((event, index) => (
                     <LifelineVerticalEvent
                       key={getLifelineEventKey(event, index)}
@@ -321,20 +324,20 @@ const LifelineVerticalEntry = forwardRef<
               {canSelectDay &&
               (hasActivities || mediaPhotos.length > 0) &&
               providerPhotos.length === 0 ? (
-                <div className="mt-4">{addDayButton}</div>
+                <div className="mt-3">{addDayButton}</div>
               ) : null}
 
               {mediaPhotos.length > 0 && (
-                <div className="mt-6 flex flex-wrap items-start">
+                <div className="mt-4 flex flex-wrap items-start">
                   {mediaPhotos.map((photo, index) => (
                     <LifelinePhotoCard
                       key={`${photo.src}-${index}`}
                       photo={photo}
                       rotate={photo.rotate ?? photoTilts[index] ?? 0}
-                      width={160}
+                      width={148}
                       className={cn(
                         "relative",
-                        index > 0 && "-ml-8 mt-6",
+                        index > 0 && "-ml-6 mt-4",
                       )}
                     />
                   ))}
@@ -342,7 +345,7 @@ const LifelineVerticalEntry = forwardRef<
               )}
 
               {people.length > 0 && (
-                <div className="mt-6 border-t border-zinc-200/70 pt-5 transition-colors duration-300 dark:border-zinc-800/70">
+                <div className="mt-4 border-t border-zinc-200/70 pt-4 transition-colors duration-300 dark:border-zinc-800/70">
                   <LifelinePeople people={people} allowWrap />
                 </div>
               )}
@@ -487,12 +490,12 @@ export function LifelineVertical({
       aria-label={title}
       className={cn(
         // Extra top pad clears fixed corner name/actions on small screens.
-        "relative select-none px-4 pb-24 pt-2 sm:px-6 [&_a]:cursor-pointer",
+        "relative select-none px-4 pb-[max(5.5rem,calc(env(safe-area-inset-bottom)+4rem))] pt-1 sm:px-6 [&_a]:cursor-pointer",
         !isLayoutReady && "invisible",
       )}
       style={showIntro ? introStyle : undefined}
     >
-      <div className={cn(`${GRID_CLASS} mb-6 items-end`, showIntro && "lifeline-labels-intro")}>
+      <div className={cn(`${GRID_CLASS} mb-4 items-end`, showIntro && "lifeline-labels-intro")}>
         <p className="text-right font-runde text-[11px] font-medium uppercase leading-4 tracking-[-2%] text-zinc-500 transition-colors duration-300 dark:text-zinc-600">
           {new Date().getFullYear()}
         </p>

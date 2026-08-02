@@ -1,8 +1,8 @@
 import {
-  PROVIDER_CARD_HEIGHT,
+  PROVIDER_CARD_COMPACT_HEIGHT,
   PROVIDER_DAY_MIN_WIDTH,
-  PROVIDER_STACK_END_PAD,
-  PROVIDER_STACK_MAX_PX,
+  PROVIDER_STACK_COMPACT_FOOTER,
+  PROVIDER_STACK_COMPACT_MAX_PX,
 } from "./provider-card-layout"
 import type { LifelineMarker } from "./types"
 
@@ -64,10 +64,10 @@ export function getMarkerHeight(marker: LifelineMarker, nextYear?: number) {
       (photo) => Boolean(photo.activityType) || Boolean(photo.provider),
     ).length
     const expandedH =
-      cardCount * PROVIDER_CARD_HEIGHT +
-      Math.max(0, cardCount - 1) * 8 +
-      PROVIDER_STACK_END_PAD
-    height += Math.min(expandedH, PROVIDER_STACK_MAX_PX) + 24
+      cardCount * PROVIDER_CARD_COMPACT_HEIGHT +
+      Math.max(0, cardCount - 1) * 6 +
+      PROVIDER_STACK_COMPACT_FOOTER
+    height += Math.min(expandedH, PROVIDER_STACK_COMPACT_MAX_PX) + 16
   }
 
   if (peopleOnly) height += 88

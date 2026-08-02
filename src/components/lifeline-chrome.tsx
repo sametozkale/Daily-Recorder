@@ -129,7 +129,7 @@ export function LifelineOwnerCornerActions({
           ) : null}
           <DropdownMenuSeparator />
           <DropdownMenuItem
-            className="text-muted-foreground focus:text-muted-foreground focus:**:text-muted-foreground"
+            className="text-muted-foreground focus:text-muted-foreground not-data-[variant=destructive]:focus:**:text-muted-foreground [&_svg]:text-muted-foreground!"
             onClick={() => {
               void signOut()
             }}

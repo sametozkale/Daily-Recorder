@@ -138,6 +138,93 @@ function createStackPoses(count: number): StackPose[] {
   })
 }
 
+function AddActivityButton({
+  onAdd,
+  addLabel,
+  className,
+}: {
+  onAdd: () => void
+  addLabel: string
+  className?: string
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onAdd}
+      aria-label={addLabel}
+      data-lifeline-interactive=""
+      className={cn(
+        "inline-flex h-7 items-center gap-1 rounded-full px-2.5",
+        "bg-zinc-100 font-runde text-xs font-medium tracking-[-2%] text-zinc-500",
+        "transition-[opacity,color,background-color] duration-300",
+        "hover:bg-zinc-200 hover:text-black",
+        "dark:bg-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-white",
+        className,
+      )}
+    >
+      <Icon icon={AppIcons.plus} size={14} strokeWidth={2.25} />
+      Add activity
+    </button>
+  )
+}
+
+/**
+ * Mobile / vertical: in-flow title rows (no preview, no absolute fan stack).
+ * Avoids nested scroll + 72px end-pad gaps that the desktop stack needs.
+ */
+function CompactActivityList({
+  cards,
+  className,
+  onAdd,
+  addLabel,
+}: {
+  cards: LifelinePhoto[]
+  className?: string
+  onAdd?: () => void
+  addLabel: string
+}) {
+  return (
+    <div className={cn("mb-2 w-full", className)}>
+      <ul className="flex w-full flex-col gap-1.5">
+        {cards.map((photo, index) => {
+          const href = photo.href
+          return (
+            <li
+              key={`${photo.activityId ?? photo.alt}-${index}`}
+              className="group/card relative flex h-10 w-full items-center gap-1.5 rounded-xl border border-[#f4f4f4] bg-[#fafafa] px-2 dark:border-white/10 dark:bg-zinc-900"
+            >
+              <div className="relative z-20 flex min-w-0 flex-1 items-center gap-1.5">
+                <ActivityTypeIcon href={href} size={14} />
+                <p className="min-w-0 flex-1 truncate text-[13px] font-medium tracking-[-0.13px] text-[#323232] dark:text-zinc-200">
+                  {photo.alt}
+                </p>
+                {photo.activityId ? (
+                  <ActivityCardMenu activityId={photo.activityId} />
+                ) : null}
+              </div>
+              {href ? (
+                <a
+                  href={href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  data-lifeline-interactive=""
+                  aria-label={`Open ${photo.alt}`}
+                  className="absolute inset-0 z-10"
+                />
+              ) : null}
+            </li>
+          )
+        })}
+      </ul>
+      {onAdd ? (
+        <div className="mt-2">
+          <AddActivityButton onAdd={onAdd} addLabel={addLabel} />
+        </div>
+      ) : null}
+    </div>
+  )
+}
+
 /**
  * Activity cards (all types): fanned/random stack at rest, then on day
  * hover they ease into a vertical list (newest → oldest).
@@ -174,6 +261,7 @@ export function ProviderCardStack({
   // Cap the scroll viewport to what's actually visible below the stack —
   // the stage clips overflow, so a taller panel would hide lower cards.
   useLayoutEffect(() => {
+    if (forceExpanded) return
     const el = rootRef.current
     if (!el || count === 0) return
 
@@ -203,31 +291,33 @@ export function ProviderCardStack({
       window.removeEventListener("scroll", updateMax, true)
       observer.disconnect()
     }
-  }, [collapsedH, count])
+  }, [collapsedH, count, forceExpanded])
 
   if (cards.length === 0) return null
 
-  // Vertical / touch: fill the content column so 258px cards don't overflow
-  // narrow phones. Desktop hover stack keeps the fixed Figma width.
-  const fluid = forceExpanded
+  if (forceExpanded) {
+    return (
+      <CompactActivityList
+        cards={cards}
+        className={className}
+        onAdd={onAdd}
+        addLabel={addLabel}
+      />
+    )
+  }
 
   return (
     <div
       ref={rootRef}
-      className={cn(
-        "provider-card-stack relative mb-3",
-        forceExpanded && "provider-card-stack--expanded",
-        fluid && "w-full max-w-[258px]",
-        className,
-      )}
+      className={cn("provider-card-stack relative mb-3", className)}
       style={
         {
-          width: fluid ? undefined : collapsedW,
+          width: collapsedW,
           "--stack-collapsed": `${collapsedH}px`,
           "--stack-expanded": `${expandedH}px`,
           "--stack-scroll-h": `${scrollContentH}px`,
-          "--stack-collapsed-w": fluid ? "100%" : `${collapsedW}px`,
-          "--stack-expanded-w": fluid ? "100%" : `${CARD_WIDTH}px`,
+          "--stack-collapsed-w": `${collapsedW}px`,
+          "--stack-expanded-w": `${CARD_WIDTH}px`,
           "--stack-max": PROVIDER_STACK_MAX,
           "--card-h": `${CARD_HEIGHT}px`,
           "--stack-gap": `${STACK_GAP}px`,
@@ -243,10 +333,10 @@ export function ProviderCardStack({
             return (
               <div
                 key={`${photo.activityId ?? photo.alt}-${index}`}
-                className="provider-card-stack__card group/card absolute left-0 top-0 rounded-2xl bg-[#fafafa] shadow-[0_8px_24px_-12px_rgb(0_0_0/0.18)] ring-1 ring-black/5 transition-[transform,box-shadow,width] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] dark:bg-zinc-900 dark:ring-white/10"
+                className="provider-card-stack__card group/card absolute left-0 top-0 rounded-2xl border border-[#f4f4f4] bg-[#fafafa] shadow-[0_8px_24px_-12px_rgb(0_0_0/0.18)] transition-[transform,box-shadow,width] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] dark:border-white/10 dark:bg-zinc-900"
                 style={
                   {
-                    width: fluid ? "100%" : CARD_WIDTH,
+                    width: CARD_WIDTH,
                     height: CARD_HEIGHT,
                     zIndex: count - index,
                     "--i": index,
@@ -285,9 +375,7 @@ export function ProviderCardStack({
                 "transition-[opacity,color,background-color] duration-300",
                 "hover:bg-zinc-200 hover:text-black",
                 "dark:bg-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-white",
-                forceExpanded
-                  ? "opacity-100"
-                  : "opacity-0 group-hover:opacity-100",
+                "opacity-0 group-hover:opacity-100",
               )}
               style={{ top: expandedH + ADD_BUTTON_GAP }}
             >

@@ -16,7 +16,7 @@ export function LifelineStickyLabels() {
         <p className="mb-5 h-4 font-runde text-[11px] font-medium uppercase leading-4 tracking-[-2%] text-zinc-500 transition-colors duration-300 dark:text-zinc-600">
           {new Date().getFullYear()}
         </p>
-        <p className="mb-6 h-5 font-runde text-[11px] font-medium uppercase leading-5 tracking-[-2%] text-zinc-500 transition-colors duration-300 dark:text-zinc-600">
+        <p className="mb-5 h-5 font-runde text-[11px] font-medium uppercase leading-5 tracking-[-2%] text-zinc-500 transition-colors duration-300 dark:text-zinc-600">
           Days
         </p>
       </div>

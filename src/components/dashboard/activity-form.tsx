@@ -22,6 +22,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
+import { normalizeHttpUrl } from "@/lib/normalize-url"
 import { cn } from "@/lib/utils"
 import { createActivity, updateActivity } from "@/lib/actions/activities"
 import {
@@ -71,6 +72,13 @@ export function ActivityForm({
         if (isPublic) formData.set("is_public", "on")
         else formData.delete("is_public")
         if (activity) formData.set("id", activity.id)
+
+        const url = String(formData.get("url") ?? "")
+        if (url.trim()) formData.set("url", normalizeHttpUrl(url))
+        const mediaUrl = String(formData.get("media_url") ?? "")
+        if (mediaUrl.trim()) {
+          formData.set("media_url", normalizeHttpUrl(mediaUrl))
+        }
 
         startTransition(async () => {
           const result = isEditing
@@ -124,10 +132,18 @@ export function ActivityForm({
         <Input
           id="url"
           name="url"
-          type="url"
+          type="text"
+          inputMode="url"
+          autoComplete="url"
           required
           defaultValue={activity?.url ?? undefined}
           placeholder="Figma, GitHub, Notion…"
+          onBlur={(event) => {
+            const next = normalizeHttpUrl(event.currentTarget.value)
+            if (next !== event.currentTarget.value) {
+              event.currentTarget.value = next
+            }
+          }}
         />
       </div>
 
@@ -182,9 +198,17 @@ export function ActivityForm({
             <Input
               id="media_url"
               name="media_url"
-              type="url"
+              type="text"
+              inputMode="url"
+              autoComplete="url"
               defaultValue={activity?.media_url ?? undefined}
               placeholder="Optional screenshot override"
+              onBlur={(event) => {
+                const next = normalizeHttpUrl(event.currentTarget.value)
+                if (next !== event.currentTarget.value) {
+                  event.currentTarget.value = next
+                }
+              }}
             />
           </div>
 
