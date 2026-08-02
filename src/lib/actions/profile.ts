@@ -17,7 +17,6 @@ export async function updateProfile(formData: FormData) {
     .trim()
     .toLowerCase()
   const title = String(formData.get("title") ?? "").trim() || null
-  const bio = String(formData.get("bio") ?? "").trim() || null
 
   if (!displayName) return { error: "Display name is required." }
   if (!/^[a-z0-9]([a-z0-9-]{0,62}[a-z0-9])?$/.test(slug)) {
@@ -39,7 +38,6 @@ export async function updateProfile(formData: FormData) {
       display_name: displayName,
       slug,
       title,
-      bio,
     })
     .eq("id", user.id)
 

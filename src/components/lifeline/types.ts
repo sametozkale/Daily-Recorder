@@ -1,3 +1,4 @@
+import type { ActivityType } from "@/lib/database.types"
 import type { CompanyIconId } from "./company-icon"
 
 
@@ -45,6 +46,10 @@ export interface LifelinePhoto extends LifelineEventImage {
   width?: number
   /** Brand mark overlay / branded card surface. */
   provider?: "github" | "figma"
+  /** When set, this photo is an activity card (same shell as GitHub/Figma). */
+  activityType?: ActivityType
+  /** Source activity id — used for owner edit/delete menus. */
+  activityId?: string
   /** Optional outbound link for the card. */
   href?: string
 }

@@ -10,6 +10,8 @@
   --font-sans: var(--font-geist-sans);
   --lifeline-font: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+  --font-runde: var(--font-open-runde), "Open Runde", ui-sans-serif, system-ui,
+    sans-serif;
   --font-heading: var(--font-sans);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
@@ -154,7 +156,67 @@
   html {
     @apply font-sans;
   }
+
+  /* Clickable affordance — buttons default to arrow in most UAs. */
+  a[href],
+  button:not(:disabled),
+  summary,
+  [role="button"]:not([aria-disabled="true"]),
+  [role="menuitem"]:not([aria-disabled="true"]),
+  [role="option"]:not([aria-disabled="true"]),
+  [role="checkbox"]:not([aria-disabled="true"]),
+  [role="combobox"]:not([aria-disabled="true"]),
+  [data-slot="button"]:not(:disabled):not([aria-disabled="true"]),
+  [data-slot="checkbox"]:not(:disabled):not([aria-disabled="true"]),
+  [data-slot="select-trigger"]:not(:disabled):not([aria-disabled="true"]),
+  [data-slot="select-item"]:not([data-disabled]),
+  [data-slot="dropdown-menu-item"]:not([data-disabled]),
+  [data-slot="dropdown-menu-checkbox-item"]:not([data-disabled]),
+  [data-slot="dropdown-menu-radio-item"]:not([data-disabled]),
+  [data-slot="dropdown-menu-sub-trigger"],
+  label[for] {
+    cursor: pointer;
+  }
+
+  button:disabled,
+  [aria-disabled="true"],
+  [data-disabled],
+  input:disabled,
+  select:disabled,
+  textarea:disabled {
+    cursor: not-allowed;
+  }
+
+  /* Progressive enhancement — Chromium 139+; others keep border-radius. */
+  button,
+  [data-slot="button"],
+  input[type="button"],
+  input[type="submit"],
+  input[type="reset"] {
+    corner-shape: squircle;
+  }
 }
+  /* Horizontal rail dashes — slightly more gap than default border-dashed. */
+  .lifeline-rail-line {
+    background-image: repeating-linear-gradient(
+      to right,
+      rgb(212 212 216) 0,
+      rgb(212 212 216) 3px,
+      transparent 3px,
+      transparent 7px
+    );
+  }
+
+  .dark .lifeline-rail-line {
+    background-image: repeating-linear-gradient(
+      to right,
+      rgb(39 39 42) 0,
+      rgb(39 39 42) 3px,
+      transparent 3px,
+      transparent 7px
+    );
+  }
+
   .lifeline-rail-intro {
     transform: scaleX(var(--lifeline-intro-progress, 0));
     transform-origin: left center;
@@ -179,44 +241,170 @@
     font-family: var(--lifeline-font);
 }
 
-  /* Provider logo cards: stacked at rest, fan open on day hover. */
+  /* Activity cards: fan at rest → vertical list on day hover.
+     Desktop hover expands out of flow so the marker/track height (and the
+     centered rail) never change. Vertical / forceExpanded stays in flow.
+     `--stack-max` is measured to the viewport bottom so lower cards aren't
+     clipped by the stage's overflow:hidden while scrolling. */
   .provider-card-stack {
+    position: relative;
+    width: var(--stack-collapsed-w, auto);
     height: var(--stack-collapsed);
-    transition: height 500ms cubic-bezier(0.22, 1, 0.36, 1);
+    overflow: visible;
+    transition: width 500ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .provider-card-stack__scroll {
+    position: relative;
+    width: 100%;
+    height: 100%;
+  }
+
+  .provider-card-stack__inner {
+    position: relative;
+    width: 100%;
+    height: 100%;
   }
 
   .provider-card-stack__card {
-    transform: translate(
-      calc(var(--i, 0) * var(--stack-peek-x, 4px)),
-      calc(var(--i, 0) * var(--stack-peek, 6px))
-    );
+    transform: translate(var(--tx, 0px), var(--ty, 0px))
+      rotate(var(--rot, 0deg));
+    transform-origin: center center;
   }
 
-  .group:hover .provider-card-stack,
-  .provider-card-stack--expanded {
-    height: var(--stack-expanded);
+  /* Scroll without a visible scrollbar.
+     Also keep expanded while a card menu is open — the menu portals out of
+     the day `.group`, so `:hover` alone would collapse the stack mid-click. */
+  .group:hover
+    .provider-card-stack:not(.provider-card-stack--expanded)
+    .provider-card-stack__scroll,
+  .provider-card-stack:has([data-popup-open]):not(
+      .provider-card-stack--expanded
+    )
+    .provider-card-stack__scroll,
+  .provider-card-stack--expanded .provider-card-stack__scroll {
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-width: none;
+  }
+
+  .group:hover
+    .provider-card-stack:not(.provider-card-stack--expanded)
+    .provider-card-stack__scroll::-webkit-scrollbar,
+  .provider-card-stack:has([data-popup-open]):not(
+      .provider-card-stack--expanded
+    )
+    .provider-card-stack__scroll::-webkit-scrollbar,
+  .provider-card-stack--expanded .provider-card-stack__scroll::-webkit-scrollbar {
+    display: none;
+    width: 0;
+    height: 0;
+  }
+
+  /* Day hover (desktop): keep in-flow size collapsed; list overlays downward. */
+  .group:hover .provider-card-stack:not(.provider-card-stack--expanded),
+  .provider-card-stack:has([data-popup-open]):not(
+      .provider-card-stack--expanded
+    ) {
+    width: var(--stack-expanded-w, auto);
+    height: var(--stack-collapsed);
+  }
+
+  .group:hover
+    .provider-card-stack:not(.provider-card-stack--expanded)
+    .provider-card-stack__scroll,
+  .provider-card-stack:has([data-popup-open]):not(
+      .provider-card-stack--expanded
+    )
+    .provider-card-stack__scroll {
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 30;
+    width: var(--stack-expanded-w, auto);
+    height: min(var(--stack-scroll-h), var(--stack-max));
+  }
+
+  .group:hover
+    .provider-card-stack:not(.provider-card-stack--expanded)
+    .provider-card-stack__inner,
+  .provider-card-stack:has([data-popup-open]):not(
+      .provider-card-stack--expanded
+    )
+    .provider-card-stack__inner {
+    width: var(--stack-expanded-w, auto);
+    height: var(--stack-scroll-h);
   }
 
   .group:hover .provider-card-stack__card,
+  .provider-card-stack:has([data-popup-open]) .provider-card-stack__card,
   .provider-card-stack--expanded .provider-card-stack__card {
     transform: translate(
-      0,
-      calc(var(--i, 0) * (var(--card-size) + var(--stack-gap)))
-    );
-    box-shadow:
-      0 10px 28px -12px rgb(0 0 0 / 0.18),
-      0 0 0 1px rgb(0 0 0 / 0.04);
+        0,
+        calc(var(--i, 0) * (var(--card-h) + var(--stack-gap)))
+      )
+      rotate(0deg);
+    /* Soft drop shadows stack into a muddy haze in a tight list — ring only. */
+    box-shadow: none;
+  }
+
+  /* Vertical layout: expand in flow with an internal scroll cap. */
+  .provider-card-stack--expanded {
+    width: var(--stack-expanded-w, auto);
+    height: min(var(--stack-scroll-h), var(--stack-max));
+    overflow: visible;
+  }
+
+  .provider-card-stack--expanded .provider-card-stack__scroll {
+    width: 100%;
+    height: 100%;
+  }
+
+  .provider-card-stack--expanded .provider-card-stack__inner {
+    width: var(--stack-expanded-w, auto);
+    height: var(--stack-scroll-h);
   }
 
   @media (hover: none) {
-    .provider-card-stack {
-      height: var(--stack-expanded);
+    .provider-card-stack:not(.provider-card-stack--expanded) {
+      width: var(--stack-expanded-w, auto);
+      height: var(--stack-collapsed);
+    }
+
+    .provider-card-stack:not(.provider-card-stack--expanded)
+      .provider-card-stack__scroll {
+      position: absolute;
+      top: 0;
+      left: 0;
+      z-index: 30;
+      width: var(--stack-expanded-w, auto);
+      height: min(var(--stack-scroll-h), var(--stack-max));
+      overflow-x: hidden;
+      overflow-y: auto;
+      overscroll-behavior: contain;
+      scrollbar-width: none;
+    }
+
+    .provider-card-stack:not(.provider-card-stack--expanded)
+      .provider-card-stack__scroll::-webkit-scrollbar {
+      display: none;
+      width: 0;
+      height: 0;
+    }
+
+    .provider-card-stack:not(.provider-card-stack--expanded)
+      .provider-card-stack__inner {
+      width: var(--stack-expanded-w, auto);
+      height: var(--stack-scroll-h);
     }
 
     .provider-card-stack__card {
       transform: translate(
-        0,
-        calc(var(--i, 0) * (var(--card-size) + var(--stack-gap)))
-      );
+          0,
+          calc(var(--i, 0) * (var(--card-h) + var(--stack-gap)))
+        )
+        rotate(0deg);
+      box-shadow: none;
     }
   }

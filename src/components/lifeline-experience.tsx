@@ -1,7 +1,8 @@
 "use client"
 
 import { useRouter } from "next/navigation"
-import { useState } from "react"
+import { useMemo, useState, useTransition } from "react"
+import { toast } from "sonner"
 
 import { ActivityForm } from "@/components/dashboard/activity-form"
 import { Lifeline } from "@/components/lifeline"
@@ -22,24 +23,50 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import type { Profile } from "@/lib/database.types"
+import { deleteActivity } from "@/lib/actions/activities"
+import { todayISODate } from "@/lib/activity-types"
+import type { Activity, Profile } from "@/lib/database.types"
+
+type AddActivityDialog =
+  | { mode: "day"; date: string }
+  | { mode: "custom" }
+
+function formatActivityDialogDate(isoDate: string) {
+  const [year, month, day] = isoDate.split("-").map(Number)
+  return new Date(Date.UTC(year, month - 1, day)).toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    timeZone: "UTC",
+  })
+}
 
 export function LifelineExperience({
   profile,
   markers,
   birthYear,
+  activities = [],
   mode = "public",
   publicHref = null,
 }: {
   profile: Profile
   markers: LifelineMarker[]
   birthYear: number
+  activities?: Activity[]
   mode?: "public" | "owner"
   publicHref?: string | null
 }) {
   const router = useRouter()
-  const [selectedDate, setSelectedDate] = useState<string | null>(null)
+  const [pending, startTransition] = useTransition()
+  const [addDialog, setAddDialog] = useState<AddActivityDialog | null>(null)
+  const [editingActivity, setEditingActivity] = useState<Activity | null>(null)
   const [settingsOpen, setSettingsOpen] = useState(false)
+
+  const activitiesById = useMemo(() => {
+    const map = new Map<string, Activity>()
+    for (const activity of activities) map.set(activity.id, activity)
+    return map
+  }, [activities])
 
   const shell = (
     <LifelineShell>
@@ -53,6 +80,7 @@ export function LifelineExperience({
         <LifelineOwnerCornerActions
           publicHref={publicHref}
           onOpenSettings={() => setSettingsOpen(true)}
+          onAddActivity={() => setAddDialog({ mode: "custom" })}
         />
       ) : (
         <LifelinePublicCornerActions />
@@ -71,24 +99,56 @@ export function LifelineExperience({
       {mode === "owner" ? (
         <>
           <Dialog
-            open={Boolean(selectedDate)}
+            open={Boolean(addDialog)}
             onOpenChange={(open) => {
-              if (!open) setSelectedDate(null)
+              if (!open) setAddDialog(null)
             }}
           >
             <DialogContent className="sm:max-w-md" showCloseButton>
               <DialogHeader>
-                <DialogTitle>Log activity</DialogTitle>
+                <DialogTitle>Add activity</DialogTitle>
                 <DialogDescription>
-                  Add work for {selectedDate}.
+                  {addDialog?.mode === "day"
+                    ? `For ${formatActivityDialogDate(addDialog.date)}.`
+                    : addDialog?.mode === "custom"
+                      ? "Choose a date for this entry."
+                      : null}
                 </DialogDescription>
               </DialogHeader>
-              {selectedDate ? (
+              {addDialog ? (
                 <ActivityForm
-                  defaultDate={selectedDate}
-                  showDateField={false}
+                  defaultDate={
+                    addDialog.mode === "day" ? addDialog.date : todayISODate()
+                  }
+                  showDateField={addDialog.mode === "custom"}
                   onSuccess={() => {
-                    setSelectedDate(null)
+                    setAddDialog(null)
+                    router.refresh()
+                  }}
+                />
+              ) : null}
+            </DialogContent>
+          </Dialog>
+
+          <Dialog
+            open={Boolean(editingActivity)}
+            onOpenChange={(open) => {
+              if (!open) setEditingActivity(null)
+            }}
+          >
+            <DialogContent className="sm:max-w-md" showCloseButton>
+              <DialogHeader>
+                <DialogTitle>Edit activity</DialogTitle>
+                <DialogDescription>
+                  Update this entry on your lifeline.
+                </DialogDescription>
+              </DialogHeader>
+              {editingActivity ? (
+                <ActivityForm
+                  activity={editingActivity}
+                  showDateField
+                  onSuccess={() => {
+                    setEditingActivity(null)
                     router.refresh()
                   }}
                 />
@@ -121,7 +181,27 @@ export function LifelineExperience({
   if (mode !== "owner") return shell
 
   return (
-    <LifelineInteractionProvider onDaySelect={setSelectedDate}>
+    <LifelineInteractionProvider
+      onDaySelect={(date) => setAddDialog({ mode: "day", date })}
+      onEditActivity={(activityId) => {
+        const activity = activitiesById.get(activityId)
+        if (activity) setEditingActivity(activity)
+      }}
+      onDeleteActivity={(activityId) => {
+        if (pending) return
+        if (!confirm("Delete this activity?")) return
+        const formData = new FormData()
+        formData.set("id", activityId)
+        startTransition(async () => {
+          const result = await deleteActivity(formData)
+          if (result?.error) toast.error(result.error)
+          else {
+            toast.success("Deleted")
+            router.refresh()
+          }
+        })
+      }}
+    >
       {shell}
     </LifelineInteractionProvider>
   )

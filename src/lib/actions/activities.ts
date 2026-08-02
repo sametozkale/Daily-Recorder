@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache"
 import { detectActivityProvider } from "@/lib/activity-provider"
 import type { ActivityType } from "@/lib/database.types"
 import { ACTIVITY_TYPES } from "@/lib/activity-types"
-import { resolveActivityMediaUrl } from "@/lib/figma-preview"
+import { resolveLinkPreview } from "@/lib/link-preview"
 import { createClient } from "@/lib/supabase/server"
 
 async function requireUser() {
@@ -27,13 +27,14 @@ function parseActivityFields(formData: FormData) {
   const type = String(formData.get("type") ?? "other") as ActivityType
   const occurredOn = String(formData.get("occurred_on") ?? "").trim()
   const summary = String(formData.get("summary") ?? "").trim() || null
-  const url = String(formData.get("url") ?? "").trim() || null
+  const url = String(formData.get("url") ?? "").trim()
   const project = String(formData.get("project") ?? "").trim() || null
   const mediaUrl = String(formData.get("media_url") ?? "").trim() || null
   const isPublic = formData.get("is_public") === "on"
 
   if (!title) return { error: "Title is required." as const }
   if (!occurredOn) return { error: "Date is required." as const }
+  if (!url) return { error: "Link is required." as const }
   if (!ACTIVITY_TYPES.includes(type)) {
     return { error: "Invalid activity type." as const }
   }
@@ -63,7 +64,7 @@ export async function createActivity(formData: FormData) {
   const provider = detectActivityProvider(data)
   const mediaUrl =
     data.media_url ??
-    (await resolveActivityMediaUrl({
+    (await resolveLinkPreview({
       url: data.url,
       mediaUrl: data.media_url,
       provider,
@@ -104,10 +105,29 @@ export async function updateActivity(formData: FormData) {
     return { error: parsed.error }
   }
 
+  const data = parsed.data!
+  const provider = detectActivityProvider(data)
+  const mediaUrl =
+    data.media_url ??
+    (await resolveLinkPreview({
+      url: data.url,
+      mediaUrl: data.media_url,
+      provider,
+    }))
+
   const { supabase, user } = await requireUser()
   const { error } = await supabase
     .from("activities")
-    .update(parsed.data!)
+    .update({
+      ...data,
+      media_url: mediaUrl,
+      source:
+        provider === "github"
+          ? "github"
+          : provider === "figma"
+            ? "figma"
+            : "manual",
+    })
     .eq("id", id)
     .eq("user_id", user.id)
 

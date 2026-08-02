@@ -1,13 +1,7 @@
-import type { LifelineEvent, LifelineMarker } from "@/components/lifeline/types"
-import {
-  detectActivityProvider,
-  providerBrandSrc,
-  providerLabel,
-  type ActivityProvider,
-} from "@/lib/activity-provider"
-import { ACTIVITY_TYPE_LABELS } from "@/lib/activity-types"
+import type { LifelineMarker } from "@/components/lifeline/types"
+import { detectActivityProvider } from "@/lib/activity-provider"
 import type { Activity, Profile } from "@/lib/database.types"
-import { resolveActivityMediaUrl } from "@/lib/figma-preview"
+import { resolveLinkPreview } from "@/lib/link-preview"
 import { defineLifeline } from "@/lib/lifeline-data"
 
 const MS_PER_DAY = 86_400_000
@@ -29,42 +23,9 @@ function toISODate(utcMs: number) {
   return new Date(utcMs).toISOString().slice(0, 10)
 }
 
-function activityToEvent(
-  activity: Activity,
-  provider: ActivityProvider | null,
-  previewUrl: string | null,
-): LifelineEvent {
-  const typeLabel = ACTIVITY_TYPE_LABELS[activity.type]
-  const project = activity.project ? ` · ${activity.project}` : ""
-  const summary = activity.summary ? ` — ${activity.summary}` : ""
-  const prefix = provider
-    ? `${providerLabel(provider)} · `
-    : `[${typeLabel}] `
-
-  const text: string | LifelineEvent = activity.url
-    ? [
-        { type: "text", value: prefix },
-        { type: "link", value: activity.title, href: activity.url },
-        { type: "text", value: `${project}${summary}` },
-      ]
-    : `${prefix}${activity.title}${project}${summary}`
-
-  if (previewUrl) {
-    return {
-      text,
-      image: {
-        src: previewUrl,
-        alt: activity.title,
-      },
-    }
-  }
-
-  return text
-}
-
 async function enrichActivity(activity: Activity) {
   const provider = detectActivityProvider(activity)
-  const previewUrl = await resolveActivityMediaUrl({
+  const previewUrl = await resolveLinkPreview({
     url: activity.url,
     mediaUrl: activity.media_url,
     provider,
@@ -76,6 +37,7 @@ async function enrichActivity(activity: Activity) {
 /**
  * Maps day-based activities onto the Lifeline journey axis (day 1..N).
  * Quiet days stay on the rail so scrubbing feels continuous.
+ * Every activity becomes a card (same shell as GitHub / Figma).
  */
 export async function mapActivitiesToLifeline(
   profile: Profile,
@@ -87,21 +49,37 @@ export async function mapActivitiesToLifeline(
 
   const enriched = await Promise.all(sorted.map(enrichActivity))
 
-  const today = new Date()
-  const todayUTC = Date.UTC(
-    today.getUTCFullYear(),
-    today.getUTCMonth(),
-    today.getUTCDate(),
+  // Calendar days match the user's local “today”, same as the scroll park.
+  const now = new Date()
+  const todayUTC = Date.UTC(now.getFullYear(), now.getMonth(), now.getDate())
+
+  const accountCreated = new Date(profile.created_at)
+  const accountDayUTC = Date.UTC(
+    accountCreated.getFullYear(),
+    accountCreated.getMonth(),
+    accountCreated.getDate(),
   )
+  // Keep the week before signup open so early work can still be logged.
+  const weekBeforeAccountUTC = accountDayUTC - 7 * MS_PER_DAY
 
   const firstActivityUTC = sorted[0]
     ? parseUTCDate(sorted[0].occurred_on)
-    : todayUTC
-  const startUTC = firstActivityUTC - 2 * MS_PER_DAY
+    : null
+  const startUTC = Math.min(
+    weekBeforeAccountUTC,
+    firstActivityUTC ?? weekBeforeAccountUTC,
+  )
+
   const lastActivityUTC = sorted[sorted.length - 1]
     ? parseUTCDate(sorted[sorted.length - 1].occurred_on)
     : todayUTC
-  const endUTC = Math.max(lastActivityUTC, todayUTC)
+  // Always keep ~1 calendar month ahead of today open on the rail.
+  const openThroughUTC = Date.UTC(
+    now.getFullYear(),
+    now.getMonth() + 1,
+    now.getDate(),
+  )
+  const endUTC = Math.max(lastActivityUTC, openThroughUTC)
 
   const firstDay = 1
   const lastDay = Math.floor((endUTC - startUTC) / MS_PER_DAY) + 1
@@ -122,54 +100,36 @@ export async function mapActivitiesToLifeline(
     {
       id: string
       age: string
-      events: LifelineEvent[]
+      events: LifelineMarker["events"]
       photos?: LifelineMarker["photos"]
-      badges?: LifelineMarker["badges"]
     }
   > = {}
 
   for (const [day, dayActivities] of byDay) {
-    const photos: NonNullable<LifelineMarker["photos"]> = []
-
     // Newest first so the stack reads with the latest card on top.
-    const providerCards = [...dayActivities]
-      .filter(
-        (
-          item,
-        ): item is typeof item & { provider: ActivityProvider } =>
-          item.provider !== null,
-      )
-      .sort((a, b) =>
-        b.activity.created_at.localeCompare(a.activity.created_at),
-      )
+    const ordered = [...dayActivities].sort((a, b) =>
+      b.activity.created_at.localeCompare(a.activity.created_at),
+    )
 
-    for (const { activity, provider } of providerCards) {
-      photos.push({
-        src: providerBrandSrc(provider),
+    const photos: NonNullable<LifelineMarker["photos"]> = ordered.map(
+      ({ activity, provider, previewUrl }) => ({
+        // White media well only gets real link previews (never brand SVGs).
+        src: previewUrl ?? "",
         alt: activity.title,
-        provider,
+        provider: provider ?? undefined,
+        activityType: activity.type,
+        activityId: activity.id,
         href: activity.url ?? undefined,
-        width: 112,
-      })
-    }
-
-    for (const { activity, provider, previewUrl } of dayActivities) {
-      if (provider || !previewUrl) continue
-      photos.push({
-        src: previewUrl,
-        alt: activity.title,
-        href: activity.url ?? undefined,
-      })
-    }
+        width: 258,
+      }),
+    )
 
     const iso = toISODate(startUTC + (day - 1) * MS_PER_DAY)
     milestones[day] = {
       id: iso,
       age: "",
-      events: dayActivities.map(({ activity, provider, previewUrl }) =>
-        activityToEvent(activity, provider, previewUrl),
-      ),
-      ...(photos.length > 0 ? { photos: photos.slice(0, 6) } : {}),
+      events: [],
+      ...(photos.length > 0 ? { photos } : {}),
     }
   }
 
@@ -178,9 +138,7 @@ export async function mapActivitiesToLifeline(
     name: profile.display_name,
     birthYear: firstDay,
     endYear: Math.max(lastDay, firstDay + 6),
-    description:
-      profile.bio ??
-      `${profile.title ?? "Design Engineer"} — daily work lifeline.`,
+    description: `${profile.title ?? "Design Engineer"} — daily work lifeline.`,
     milestones,
   })
 
@@ -189,11 +147,11 @@ export async function mapActivitiesToLifeline(
     markers: record.markers.map((marker) => {
       const utcMs = startUTC + (marker.year - 1) * MS_PER_DAY
       const iso = toISODate(utcMs)
-      const hasEvents = marker.events.length > 0
+      const hasActivity = (marker.photos?.length ?? 0) > 0
       return {
         ...marker,
         id: iso,
-        label: formatDayLabel(utcMs, hasEvents),
+        label: formatDayLabel(utcMs, hasActivity),
         age: marker.age ?? "",
       }
     }),

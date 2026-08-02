@@ -1,6 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react"
+import { todayISODate } from "@/lib/activity-types"
 import {
   LIFELINE_STICKY_LEFT,
   LIFELINE_STICKY_SHIELD_WIDTH,
@@ -36,6 +37,11 @@ const MODE_RESOLVE_STALE_MS = 250
 /** A gap this long in the wheel stream ends one gesture and starts the next. */
 const WHEEL_GESTURE_QUIET_MS = 120
 /**
+ * Card-stack scroll sessions survive slightly longer gaps so trackpad
+ * inertia that hiccups at the top/bottom doesn't suddenly scrub the rail.
+ */
+const VSCROLL_SESSION_QUIET_MS = 320
+/**
  * Embedded: once the rail bottoms out, the wheel keeps being swallowed
  * until the stream has been quiet this long. Trackpad inertia arrives as
  * one unbroken stream, so a fast flick that eats the last of the rail
@@ -55,6 +61,14 @@ const EMBED_BOUNDARY_MAX_HOLD_MS = 900
  */
 const EMBED_INTRO_ARM_MARGIN = "0px 0px 200px 0px"
 
+/**
+ * How far (px) from the present/today park before the “Today” control appears.
+ * Scaled by stage width so wide viewports need a bit more scrub.
+ */
+const AWAY_FROM_TODAY_MIN_PX = 220
+const AWAY_FROM_TODAY_STAGE_RATIO = 0.32
+const SCROLL_TO_TODAY_MS = 520
+
 function normalizeWheelDelta(event: WheelEvent) {
   let delta = Math.abs(event.deltaX) > Math.abs(event.deltaY)
     ? event.deltaX
@@ -66,13 +80,43 @@ function normalizeWheelDelta(event: WheelEvent) {
   return delta
 }
 
+function getVerticalScroller(target: EventTarget | null) {
+  if (!(target instanceof Element)) return null
+  const scroller = target.closest("[data-lifeline-vscroll]")
+  if (!(scroller instanceof HTMLElement)) return null
+  if (scroller.scrollHeight <= scroller.clientHeight + 1) return null
+  return scroller
+}
+
+function canScrollVerticallyElement(
+  scroller: HTMLElement,
+  deltaY: number,
+) {
+  if (deltaY === 0) return false
+
+  const { scrollTop, scrollHeight, clientHeight } = scroller
+
+  // deltaY > 0 → content moves up (scroll down); < 0 → scroll up.
+  if (deltaY < 0) return scrollTop > 0
+  return scrollTop + clientHeight < scrollHeight - 1
+}
+
 function isInteractiveTarget(target: EventTarget | null) {
   // Pointer capture during drag retargets clicks to the section, so
-  // anything clickable must opt out of drag-start here.
+  // anything clickable must opt out of drag-start here. Scrollable card
+  // stacks only count when they actually overflow (collapsed fans don't).
   return (
     target instanceof Element &&
-    Boolean(target.closest("a, button, [data-lifeline-interactive]"))
+    (Boolean(target.closest("a, button, [data-lifeline-interactive]")) ||
+      Boolean(getVerticalScroller(target)))
   )
+}
+
+/** Let nested stacks keep the wheel when they can still scroll vertically. */
+function canScrollVertically(target: EventTarget | null, deltaY: number) {
+  const scroller = getVerticalScroller(target)
+  if (!scroller) return false
+  return canScrollVerticallyElement(scroller, deltaY)
 }
 
 function isEditableTarget(target: EventTarget | null) {
@@ -142,7 +186,11 @@ export function useLifelineScroll(
   const labelsRef = useRef<HTMLDivElement>(null)
   const markerRefs = useRef<(HTMLDivElement | null)[]>([])
   const maxTranslate = useRef(0)
+  /** Translate that centers today's date on stage — not the rail's end. */
+  const presentTranslate = useRef(0)
   const startInset = useRef(LIFELINE_DEFAULT_START_INSET)
+  /** Stage-relative X where year/Days pin — matches display name when present. */
+  const stickyLeft = useRef(LIFELINE_STICKY_LEFT)
   const endInset = useRef(0)
   const translatePx = useRef(0)
   const initialized = useRef(false)
@@ -178,9 +226,54 @@ export function useLifelineScroll(
   const gestureStartedHere = useRef(false)
   const gestureReleased = useRef(false)
   const boundaryHitAt = useRef(0)
+  /**
+   * When a wheel gesture begins by scrolling a card stack, keep that stack
+   * until the gesture ends — including past its top/bottom — so inertia
+   * doesn't suddenly scrub the rail.
+   */
+  const vscrollSession = useRef<HTMLElement | null>(null)
+  const todayScrollId = useRef(0)
+  const todayNavRef = useRef<"past" | "future" | null>(null)
+  /** Once the user scrubs, we stop re-parking the rail on today. */
+  const userHasNavigatedRef = useRef(false)
   const [isLayoutReady, setIsLayoutReady] = useState(false)
   const [isEmbed, setIsEmbed] = useState(false)
   const [introArmed, setIntroArmed] = useState(false)
+  /** Where the viewport sits relative to today — drives the Today control. */
+  const [todayNav, setTodayNav] = useState<"past" | "future" | null>(null)
+
+  const markUserNavigated = useCallback(() => {
+    userHasNavigatedRef.current = true
+  }, [])
+
+  const stopTodayScroll = useCallback(() => {
+    cancelAnimationFrame(todayScrollId.current)
+    todayScrollId.current = 0
+  }, [])
+
+  const syncAwayFromToday = useCallback(() => {
+    if (introAnimatingRef.current && !introSkippedRef.current) {
+      if (todayNavRef.current !== null) {
+        todayNavRef.current = null
+        setTodayNav(null)
+      }
+      return
+    }
+
+    const stageWidth = sectionRef.current?.clientWidth ?? 0
+    const threshold = Math.max(
+      AWAY_FROM_TODAY_MIN_PX,
+      stageWidth * AWAY_FROM_TODAY_STAGE_RATIO,
+    )
+    const delta = translatePx.current - presentTranslate.current
+    const next: "past" | "future" | null =
+      Math.abs(delta) <= threshold ? null : delta < 0 ? "past" : "future"
+
+    if (next !== todayNavRef.current) {
+      todayNavRef.current = next
+      setTodayNav(next)
+    }
+  }, [])
 
   modeRef.current = options.mode ?? "auto"
   isCoarsePointerRef.current = options.isCoarsePointer ?? false
@@ -206,14 +299,15 @@ export function useLifelineScroll(
     const section = sectionRef.current
     if (!section) return { isSticky: false, labelLeft: 0 }
 
-    // Stage-relative: labels pin LIFELINE_STICKY_LEFT px inside the
-    // section's own left edge, wherever the section sits on the page.
+    // Stage-relative: labels pin under the display name (or stickyLeft
+    // fallback) inside the section's own left edge.
+    const pin = stickyLeft.current
     const naturalLeft = startInset.current - translate
-    const isSticky = naturalLeft <= LIFELINE_STICKY_LEFT
+    const isSticky = naturalLeft <= pin
 
     return {
       isSticky,
-      labelLeft: isSticky ? LIFELINE_STICKY_LEFT : naturalLeft,
+      labelLeft: isSticky ? pin : naturalLeft,
     }
   }, [])
 
@@ -225,8 +319,7 @@ export function useLifelineScroll(
       if (!labels) return { isSticky, labelLeft }
 
       if (isSticky) {
-        const labelExtra =
-          LIFELINE_STICKY_LEFT - startInset.current + translate
+        const labelExtra = stickyLeft.current - startInset.current + translate
         labels.style.transform = `translate3d(${labelExtra}px, 0, 0)`
         labels.classList.add("is-pinned")
       } else {
@@ -312,9 +405,43 @@ export function useLifelineScroll(
 
       applyLabelSticky(next)
       updateFades()
+      syncAwayFromToday()
     },
-    [applyLabelSticky, updateFades],
+    [applyLabelSticky, syncAwayFromToday, updateFades],
   )
+
+  const scrollToToday = useCallback(() => {
+    markUserNavigated()
+    stopTodayScroll()
+    cancelAnimationFrame(momentumId.current)
+    momentumId.current = 0
+    dragVelocity.current = 0
+
+    const from = translatePx.current
+    const to = presentTranslate.current
+    if (Math.abs(from - to) < 0.5) {
+      applyTranslate(to)
+      return
+    }
+
+    if (prefersReducedMotionRef.current) {
+      applyTranslate(to)
+      return
+    }
+
+    const start = performance.now()
+    const step = (now: number) => {
+      const t = Math.min(1, (now - start) / SCROLL_TO_TODAY_MS)
+      const eased = 1 - (1 - t) ** 3
+      applyTranslate(from + (to - from) * eased)
+      if (t < 1) {
+        todayScrollId.current = requestAnimationFrame(step)
+      } else {
+        todayScrollId.current = 0
+      }
+    }
+    todayScrollId.current = requestAnimationFrame(step)
+  }, [applyTranslate, markUserNavigated, stopTodayScroll])
 
   applyTranslateRef.current = applyTranslate
 
@@ -361,6 +488,45 @@ export function useLifelineScroll(
     return isEmbedRef.current
   }, [])
 
+  /**
+   * Translate that puts today's date at the horizontal center of the stage.
+   * Future activity days can extend past this; the rail still scrubs to them.
+   * Focuses the date/tick band (left of wide card columns), not the column mid.
+   */
+  const measurePresentTranslate = useCallback((max: number, stageWidth: number) => {
+    if (max <= 0 || stageWidth <= 0) return 0
+
+    // Local calendar day — matches how users think about “today” on the rail.
+    const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone
+    const today = todayISODate(timeZone)
+    const markers = markerRefs.current.filter(
+      (marker): marker is HTMLDivElement => Boolean(marker),
+    )
+
+    let present =
+      markers.find((marker) => marker.dataset.lifelineDay === today) ?? null
+
+    if (!present) {
+      // Prefer the latest day on or before today if today's node is missing.
+      for (let i = markers.length - 1; i >= 0; i -= 1) {
+        const day = markers[i]?.dataset.lifelineDay
+        if (day && day <= today) {
+          present = markers[i] ?? null
+          break
+        }
+      }
+    }
+
+    if (!present) return max
+
+    const focusOffset = Math.min(present.offsetWidth, 72) / 2
+    const focusTrackX =
+      LIFELINE_STICKY_SHIELD_WIDTH + present.offsetLeft + focusOffset
+    const target = startInset.current + focusTrackX - stageWidth / 2
+
+    return clamp(target, 0, max)
+  }, [])
+
   const measureLayout = useCallback(() => {
     const track = trackRef.current
     const section = sectionRef.current
@@ -369,9 +535,13 @@ export function useLifelineScroll(
     const embed = resolveMode(true)
     const stageRect = section.getBoundingClientRect()
 
+    const cornerName = document.querySelector("[data-lifeline-corner-name]")
     const navLogo = document.querySelector("[data-site-nav-logo]")
     const navInner = document.querySelector("[data-site-nav-inner]")
 
+    const nameLeft = cornerName
+      ? cornerName.getBoundingClientRect().left - stageRect.left
+      : null
     const logoLeft = navLogo
       ? navLogo.getBoundingClientRect().left - stageRect.left
       : null
@@ -382,25 +552,25 @@ export function useLifelineScroll(
       : null
 
     /**
-     * A full-page lifeline always follows the host chrome. An embedded one
-     * follows it only when the module actually spans it — a full-bleed
-     * module lines its rail up with the logo and the container's right edge,
-     * exactly as the full-page version does, while a timeline in a narrow
-     * card has nothing to align to a nav sitting outside its own box and
-     * measures itself instead.
+     * Prefer the display-name corner so year/Days share its left edge.
+     * Fall back to the nav logo anchor, then a default inset. Embedded
+     * timelines only follow chrome when that chrome actually spans them.
      */
+    const chromeLeft = nameLeft ?? logoLeft
     const followChrome =
       !embed ||
-      (logoLeft !== null &&
+      (chromeLeft !== null &&
         navRight !== null &&
-        logoLeft >= 0 &&
+        chromeLeft >= 0 &&
         navRight <= stageRect.width &&
-        navRight > logoLeft)
+        navRight > chromeLeft)
 
-    if (followChrome && logoLeft !== null) {
-      startInset.current = logoLeft
+    if (followChrome && chromeLeft !== null) {
+      startInset.current = chromeLeft
+      stickyLeft.current = chromeLeft
     } else {
       startInset.current = LIFELINE_DEFAULT_START_INSET
+      stickyLeft.current = LIFELINE_STICKY_LEFT
     }
 
     if (followChrome && navRight !== null) {
@@ -423,9 +593,10 @@ export function useLifelineScroll(
       startInset.current + lastMarkerRight - endInset.current,
     )
     maxTranslate.current = max
+    presentTranslate.current = measurePresentTranslate(max, stageRect.width)
 
     return max
-  }, [markerCount, resolveMode])
+  }, [markerCount, measurePresentTranslate, resolveMode])
 
   useLayoutEffect(() => {
     markerRefs.current.length = markerCount
@@ -435,17 +606,12 @@ export function useLifelineScroll(
     // A timeline short enough to fit its stage measures max = 0. It still has
     // to be shown — gating readiness on a scrollable track left any small
     // timeline permanently `invisible`.
-    const max = measureLayout()
-
-    if (!initialized.current) {
-      // A skipped intro parks the rail where the intro would have settled
-      // it — its end, the present. Embedded is no different: it is the same
-      // intro and the same resting place.
-      translatePx.current = introSkippedRef.current ? max : 0
-      initialized.current = true
-    }
-
-    applyTranslate(translatePx.current)
+    measureLayout()
+    // Initial translate is owned by `measure()` once marker refs are ready —
+    // today must be centered even when future days extend the rail.
+    applyTranslate(
+      introSkippedRef.current ? presentTranslate.current : translatePx.current,
+    )
     setIsLayoutReady(true)
     // Sync initial position once before first paint; resize uses measure().
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -494,9 +660,20 @@ export function useLifelineScroll(
     const railMs = options.introRailMs ?? 3200
 
     const step = (now: number) => {
-      const max = maxTranslate.current
+      const markersReady =
+        markerCount === 0 ||
+        markerRefs.current.filter(Boolean).length >= markerCount
 
-      if (max <= 0) {
+      // Don't treat an unmeasured rail as “nothing to travel” — that used to
+      // finish the intro at translate 0 before today was centered.
+      if (!markersReady) {
+        introScrollId.current = requestAnimationFrame(step)
+        return
+      }
+
+      const present = presentTranslate.current
+
+      if (present <= 0 && maxTranslate.current <= 0) {
         // Nothing to travel: a timeline that fits its stage has no rail to
         // sweep. Waiting for one spun this loop forever and left the intro
         // lock on, so run the intro out where it already is — the markers
@@ -507,6 +684,7 @@ export function useLifelineScroll(
           onIntroScrollStartRef.current?.()
         }
         sectionRef.current?.style.setProperty("--lifeline-intro-progress", "1")
+        applyTranslateRef.current(presentTranslate.current)
         introScrollId.current = 0
         return
       }
@@ -528,7 +706,7 @@ export function useLifelineScroll(
         "--lifeline-intro-progress",
         String(progress),
       )
-      applyTranslateRef.current(progress * max)
+      applyTranslateRef.current(progress * present)
 
       if (progress < 1) {
         introScrollId.current = requestAnimationFrame(step)
@@ -536,7 +714,7 @@ export function useLifelineScroll(
       }
 
       sectionRef.current?.style.setProperty("--lifeline-intro-progress", "1")
-      applyTranslateRef.current(max)
+      applyTranslateRef.current(presentTranslate.current)
       introScrollId.current = 0
     }
 
@@ -551,6 +729,7 @@ export function useLifelineScroll(
     introArmed,
     isEmbed,
     isLayoutReady,
+    markerCount,
     options.introAnimating,
     options.introRailMs,
     options.introSkipped,
@@ -563,6 +742,10 @@ export function useLifelineScroll(
 
     if (!introWasAnimatingRef.current) return
     introWasAnimatingRef.current = false
+
+    // Always land on today when the intro hands off — even if the sweep was
+    // cancelled mid-flight after an early layout pass.
+    applyTranslateRef.current(presentTranslate.current)
 
     sectionRef.current?.style.removeProperty("--lifeline-intro-progress")
     markerRefs.current.forEach((marker) => {
@@ -579,6 +762,7 @@ export function useLifelineScroll(
   useEffect(() => {
     return () => {
       initialized.current = false
+      userHasNavigatedRef.current = false
     }
   }, [])
 
@@ -649,11 +833,40 @@ export function useLifelineScroll(
       // max === 0 is a legitimate measurement — a timeline that fits — so it
       // must not skip the ready flag either.
       const max = measureLayout()
+      const introOwnsTranslate =
+        introAnimatingRef.current && introStartedRef.current
+      const markersReady =
+        markerCount === 0 ||
+        markerRefs.current.filter(Boolean).length >= markerCount
+      const present = presentTranslate.current
+      const introSettled =
+        introSkippedRef.current || !introAnimatingRef.current
 
-      translatePx.current = clamp(translatePx.current, 0, max)
+      if (!initialized.current) {
+        if (!introOwnsTranslate) {
+          // Park on today (stage center). Future days stay reachable past this.
+          // Wait for markers so present isn’t still 0 from an empty measure.
+          translatePx.current =
+            introSkippedRef.current && markersReady ? present : 0
+        }
+
+        if (markersReady) initialized.current = true
+      } else if (
+        !userHasNavigatedRef.current &&
+        !introOwnsTranslate &&
+        introSettled &&
+        markersReady &&
+        present > 0 &&
+        Math.abs(translatePx.current - present) > 1
+      ) {
+        // Recover from a first paint that parked before today was measurable.
+        translatePx.current = present
+      } else {
+        translatePx.current = clamp(translatePx.current, 0, max)
+      }
 
       // During intro scroll, the rAF loop owns translate — only refresh bounds.
-      if (!(introAnimatingRef.current && introStartedRef.current)) {
+      if (!introOwnsTranslate) {
         applyTranslate(translatePx.current)
       }
 
@@ -679,6 +892,9 @@ export function useLifelineScroll(
     window.addEventListener("resize", scheduleMeasure)
 
     const scrub = (movement: number, target: number) => {
+      markUserNavigated()
+      cancelAnimationFrame(todayScrollId.current)
+      todayScrollId.current = 0
       applyTranslate(target)
 
       const impulse = (movement / WHEEL_VELOCITY_FRAME_MS) * 0.35
@@ -720,6 +936,20 @@ export function useLifelineScroll(
         event.target instanceof Node && section.contains(event.target)
       gestureReleased.current = false
       boundaryHitAt.current = 0
+
+      // Capture a card-stack scroll session only when this gesture can still
+      // move that stack. Keep an existing session across short inertia gaps
+      // so hitting the top while scrolling up doesn't yank the rail.
+      const scroller = getVerticalScroller(event.target)
+      const canScroll = Boolean(
+        scroller && canScrollVerticallyElement(scroller, event.deltaY),
+      )
+
+      if (wheelGapMs.current > VSCROLL_SESSION_QUIET_MS) {
+        vscrollSession.current = canScroll ? scroller : null
+      } else if (!vscrollSession.current && canScroll) {
+        vscrollSession.current = scroller
+      }
     }
 
     const onWheel = (event: WheelEvent) => {
@@ -749,6 +979,29 @@ export function useLifelineScroll(
        * and pulling left does.
        */
       const movement = (horizontalIntent ? delta : -delta) * WHEEL_SPEED
+
+      // Activity card stacks own vertical wheel while a session is active:
+      // scroll when they can, absorb at the edges so inertia doesn't yank
+      // the rail. A new gesture after a pause can scrub again.
+      if (!horizontalIntent && vscrollSession.current) {
+        const scroller = vscrollSession.current
+        if (document.contains(scroller)) {
+          if (canScrollVerticallyElement(scroller, event.deltaY)) {
+            return
+          }
+          event.preventDefault()
+          stopMomentum()
+          dragVelocity.current = 0
+          return
+        }
+        vscrollSession.current = null
+      }
+
+      // Mid-gesture entry onto a stack that can still scroll this way.
+      if (!horizontalIntent && canScrollVertically(event.target, event.deltaY)) {
+        vscrollSession.current = getVerticalScroller(event.target)
+        return
+      }
 
       if (!resolveMode()) {
         // Page mode: the lifeline is the page and every wheel is ours.
@@ -805,6 +1058,9 @@ export function useLifelineScroll(
     }
 
     const beginDrag = (event: PointerEvent) => {
+      markUserNavigated()
+      cancelAnimationFrame(todayScrollId.current)
+      todayScrollId.current = 0
       stopMomentum()
       dragVelocity.current = 0
       dragging.current = true
@@ -932,6 +1188,9 @@ export function useLifelineScroll(
       if (isEditableTarget(event.target)) return
       if (!ownsKeyboard()) return
 
+      markUserNavigated()
+      cancelAnimationFrame(todayScrollId.current)
+      todayScrollId.current = 0
       stopMomentum()
       dragVelocity.current = 0
 
@@ -962,6 +1221,8 @@ export function useLifelineScroll(
       cancelAnimationFrame(frameId)
       stopMomentum()
       cancelAnimationFrame(settleId.current)
+      cancelAnimationFrame(todayScrollId.current)
+      todayScrollId.current = 0
       settlingRef.current = false
       resizeObserver?.disconnect()
       motionQuery.removeEventListener("change", onMotionChange)
@@ -985,7 +1246,14 @@ export function useLifelineScroll(
       section.style.cursor = ""
       section.style.touchAction = ""
     }
-  }, [applyTranslate, isScrollLocked, markerCount, measureLayout, resolveMode])
+  }, [
+    applyTranslate,
+    isScrollLocked,
+    markUserNavigated,
+    markerCount,
+    measureLayout,
+    resolveMode,
+  ])
 
   return {
     sectionRef,
@@ -1000,5 +1268,7 @@ export function useLifelineScroll(
      * callers should read it as `!isEmbed || introArmed`.
      */
     introArmed,
+    todayNav,
+    scrollToToday,
   }
 }

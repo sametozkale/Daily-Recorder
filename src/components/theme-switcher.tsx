@@ -26,7 +26,7 @@ export function ThemeSwitcher() {
       onClick={() => setTheme(isDark ? "light" : "dark")}
       aria-label={isDark ? "Switch to light theme" : "Switch to dark theme"}
       className={cn(
-        "inline-flex size-8 items-center justify-center rounded-lg text-zinc-500 outline-none transition-colors hover:bg-black/5 hover:text-black dark:hover:bg-white/10 dark:hover:text-white",
+        "inline-flex size-8 items-center justify-center rounded-xl text-zinc-500 outline-none transition-colors hover:bg-black/5 hover:text-black dark:hover:bg-white/10 dark:hover:text-white",
       )}
     >
       <Icon icon={isDark ? AppIcons.sun : AppIcons.moon} size={16} />

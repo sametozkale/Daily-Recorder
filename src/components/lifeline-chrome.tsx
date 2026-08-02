@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { signOut } from "@/lib/actions/auth"
 
-/** Invisible anchors so the rail stays inset without a visible header. */
+/** Invisible anchors so the rail matches the corner name / actions insets. */
 export function LifelineRailAnchors() {
   return (
     <div
@@ -23,7 +23,7 @@ export function LifelineRailAnchors() {
     >
       <div
         data-site-nav-inner
-        className="mx-auto flex h-px w-full max-w-5xl items-center px-6"
+        className="flex h-px w-full items-center justify-between px-5 md:px-8"
       >
         <span data-site-nav-logo className="block size-px" />
       </div>
@@ -54,7 +54,10 @@ export function LifelineCornerName({
   )
 
   return (
-    <div className="pointer-events-auto fixed left-5 top-5 z-50 md:left-8 md:top-6">
+    <div
+      data-lifeline-corner-name
+      className="pointer-events-auto fixed left-5 top-5 z-50 md:left-8 md:top-6"
+    >
       {href ? (
         <Link
           href={href}
@@ -80,16 +83,26 @@ export function LifelinePublicCornerActions() {
 export function LifelineOwnerCornerActions({
   publicHref,
   onOpenSettings,
+  onAddActivity,
 }: {
   publicHref: string | null
   onOpenSettings: () => void
+  onAddActivity: () => void
 }) {
   return (
     <div className="pointer-events-auto fixed right-5 top-5 z-50 flex items-center gap-1.5 md:right-8 md:top-6">
+      <button
+        type="button"
+        onClick={onAddActivity}
+        aria-label="Add activity"
+        className="inline-flex size-8 items-center justify-center rounded-xl text-zinc-500 outline-none transition-colors hover:bg-black/5 hover:text-black dark:hover:bg-white/10 dark:hover:text-white"
+      >
+        <Icon icon={AppIcons.plus} size={16} />
+      </button>
       <ThemeSwitcher />
       <DropdownMenu>
         <DropdownMenuTrigger
-          className="inline-flex size-8 items-center justify-center rounded-lg text-zinc-500 outline-none transition-colors hover:bg-black/5 hover:text-black dark:hover:bg-white/10 dark:hover:text-white"
+          className="inline-flex size-8 items-center justify-center rounded-xl text-zinc-500 outline-none transition-colors hover:bg-black/5 hover:text-black dark:hover:bg-white/10 dark:hover:text-white"
           aria-label="More"
         >
           <Icon icon={AppIcons.more} size={16} />
@@ -116,6 +129,7 @@ export function LifelineOwnerCornerActions({
           ) : null}
           <DropdownMenuSeparator />
           <DropdownMenuItem
+            className="text-muted-foreground focus:text-muted-foreground focus:**:text-muted-foreground"
             onClick={() => {
               void signOut()
             }}

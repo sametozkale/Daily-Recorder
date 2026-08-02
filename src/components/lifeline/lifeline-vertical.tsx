@@ -55,7 +55,7 @@ function RailTick() {
   return (
     <span
       aria-hidden="true"
-      className="block h-px w-[10px] bg-zinc-400 transition-colors duration-300 dark:bg-zinc-700"
+      className="block h-px w-[10px] rounded-full bg-zinc-400 transition-colors duration-300 dark:bg-zinc-700"
     />
   )
 }
@@ -208,7 +208,7 @@ const LifelineVerticalEntry = forwardRef<
       aria-label={`Add activity on ${marker.label ?? marker.year}`}
       className="flex size-7 items-center justify-center rounded-full bg-zinc-100 text-zinc-500 transition-colors hover:bg-zinc-200 hover:text-black dark:bg-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-white"
     >
-      <Icon icon={AppIcons.plus} size={14} />
+      <Icon icon={AppIcons.plus} size={14} strokeWidth={2.25} />
     </button>
   ) : null
 
@@ -233,7 +233,7 @@ const LifelineVerticalEntry = forwardRef<
         }}
       >
         <div className={`${GRID_CLASS} items-center`}>
-          <p className="text-right text-[11px] font-medium leading-4 tabular-nums text-zinc-500 transition-colors duration-300 dark:text-zinc-600">
+          <p className="text-right font-runde text-[11px] font-medium leading-4 tracking-[-2%] tabular-nums text-zinc-500 transition-colors duration-300 dark:text-zinc-600">
             {age !== "" && age !== undefined ? age : null}
           </p>
 
@@ -245,12 +245,12 @@ const LifelineVerticalEntry = forwardRef<
             <button
               type="button"
               onClick={() => interaction?.onDaySelect?.(marker.id)}
-              className="whitespace-nowrap text-left text-[15px] font-medium leading-5 tabular-nums text-zinc-500 transition-colors duration-300 hover:text-black dark:text-zinc-400 dark:hover:text-white"
+              className="whitespace-nowrap text-left font-runde text-[15px] font-medium leading-5 tracking-[-2%] tabular-nums text-zinc-500 transition-colors duration-300 hover:text-black dark:text-zinc-400 dark:hover:text-white"
             >
               {marker.label ?? marker.year}
             </button>
           ) : (
-            <p className="whitespace-nowrap text-[15px] font-medium leading-5 tabular-nums text-zinc-500 transition-colors duration-300 dark:text-zinc-400">
+            <p className="whitespace-nowrap font-runde text-[15px] font-medium leading-5 tracking-[-2%] tabular-nums text-zinc-500 transition-colors duration-300 dark:text-zinc-400">
               {marker.label ?? marker.year}
             </p>
           )}
@@ -270,7 +270,16 @@ const LifelineVerticalEntry = forwardRef<
             <div aria-hidden="true" />
             <div className="min-w-0 text-zinc-500 transition-colors duration-300 dark:text-zinc-400">
               {providerPhotos.length > 0 ? (
-                <ProviderCardStack photos={providerPhotos} forceExpanded />
+                <ProviderCardStack
+                  photos={providerPhotos}
+                  forceExpanded
+                  onAdd={
+                    canSelectDay
+                      ? () => interaction?.onDaySelect?.(marker.id)
+                      : undefined
+                  }
+                  addLabel={`Add activity on ${marker.label ?? marker.year}`}
+                />
               ) : null}
 
               {marker.companies && marker.companies.length > 0 && (
@@ -297,7 +306,9 @@ const LifelineVerticalEntry = forwardRef<
                 </div>
               )}
 
-              {canSelectDay && hasActivities ? (
+              {canSelectDay &&
+              (hasActivities || mediaPhotos.length > 0) &&
+              providerPhotos.length === 0 ? (
                 <div className="mt-4">{addDayButton}</div>
               ) : null}
 
@@ -471,11 +482,11 @@ export function LifelineVertical({
       style={showIntro ? introStyle : undefined}
     >
       <div className={cn(`${GRID_CLASS} mb-6 items-end`, showIntro && "lifeline-labels-intro")}>
-        <p className="text-right text-[11px] font-medium uppercase leading-4 tracking-[0.08em] text-zinc-500 transition-colors duration-300 dark:text-zinc-600">
+        <p className="text-right font-runde text-[11px] font-medium uppercase leading-4 tracking-[-2%] text-zinc-500 transition-colors duration-300 dark:text-zinc-600">
           {new Date().getFullYear()}
         </p>
         <div aria-hidden="true" />
-        <p className="text-[11px] font-medium uppercase leading-5 tracking-[0.08em] text-zinc-500 transition-colors duration-300 dark:text-zinc-600">
+        <p className="font-runde text-[11px] font-medium uppercase leading-5 tracking-[-2%] text-zinc-500 transition-colors duration-300 dark:text-zinc-600">
           Days
         </p>
       </div>

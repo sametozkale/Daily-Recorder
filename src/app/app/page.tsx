@@ -40,6 +40,7 @@ export default async function DashboardPage() {
       profile={profile}
       markers={lifeline.markers}
       birthYear={lifeline.birthYear}
+      activities={activities ?? []}
       mode="owner"
       publicHref={publicHref}
     />

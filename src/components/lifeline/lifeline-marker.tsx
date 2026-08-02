@@ -59,7 +59,7 @@ export const LifelineMarkerColumn = forwardRef<
       className="group relative shrink-0 pr-8 transition-opacity duration-300 ease-out will-change-opacity"
       style={{ width: minWidth }}
       aria-label={marker.label ?? `${marker.year}`}
-      data-lifeline-day={canSelectDay ? marker.id : undefined}
+      data-lifeline-day={isIsoDateId(marker.id) ? marker.id : undefined}
     >
       <div
         className={cn("relative", animateIntro && "lifeline-marker-intro")}
@@ -73,13 +73,13 @@ export const LifelineMarkerColumn = forwardRef<
         }}
       >
         <span
-          className="absolute left-0 top-[var(--lifeline-rail)] z-10 h-[10px] w-px -translate-y-1/2 bg-zinc-400 transition-colors duration-300 group-hover:bg-zinc-600 dark:bg-zinc-700 dark:group-hover:bg-zinc-400"
+          className="absolute left-0 top-[var(--lifeline-rail)] z-10 h-[10px] w-px -translate-y-1/2 rounded-full bg-zinc-400 transition-colors duration-300 group-hover:bg-zinc-600 dark:bg-zinc-700 dark:group-hover:bg-zinc-400"
           aria-hidden="true"
         />
 
         <div className="flex w-full flex-col items-start text-left">
           {age !== "" && age !== undefined ? (
-            <p className="mb-5 h-4 text-[11px] font-medium leading-4 tabular-nums text-zinc-500 transition-colors duration-300 group-hover:text-black dark:text-zinc-600 dark:group-hover:text-zinc-400">
+            <p className="mb-5 h-4 font-runde text-[11px] font-medium leading-4 tracking-[-2%] tabular-nums text-zinc-500 transition-colors duration-300 group-hover:text-black dark:text-zinc-600 dark:group-hover:text-zinc-400">
               {age}
             </p>
           ) : (
@@ -90,12 +90,12 @@ export const LifelineMarkerColumn = forwardRef<
             <button
               type="button"
               onClick={() => interaction?.onDaySelect?.(marker.id)}
-              className="mb-6 h-5 whitespace-nowrap text-[15px] font-medium leading-5 tabular-nums text-zinc-500 transition-colors duration-300 hover:text-black group-hover:text-black dark:hover:text-white dark:group-hover:text-white"
+              className="mb-6 h-5 whitespace-nowrap font-runde text-[15px] font-medium leading-5 tracking-[-2%] tabular-nums text-zinc-500 transition-colors duration-300 hover:text-black group-hover:text-black dark:hover:text-white dark:group-hover:text-white"
             >
               {marker.label ?? marker.year}
             </button>
           ) : (
-            <p className="mb-6 h-5 whitespace-nowrap text-[15px] font-medium leading-5 tabular-nums text-zinc-500 transition-colors duration-300 group-hover:text-black dark:group-hover:text-white">
+            <p className="mb-6 h-5 whitespace-nowrap font-runde text-[15px] font-medium leading-5 tracking-[-2%] tabular-nums text-zinc-500 transition-colors duration-300 group-hover:text-black dark:group-hover:text-white">
               {marker.label ?? marker.year}
             </p>
           )}
@@ -115,7 +115,15 @@ export const LifelineMarkerColumn = forwardRef<
               )}
             >
               {providerPhotos.length > 0 ? (
-                <ProviderCardStack photos={providerPhotos} />
+                <ProviderCardStack
+                  photos={providerPhotos}
+                  onAdd={
+                    canSelectDay
+                      ? () => interaction?.onDaySelect?.(marker.id)
+                      : undefined
+                  }
+                  addLabel={`Add activity on ${marker.label ?? marker.year}`}
+                />
               ) : null}
 
               {marker.companies && marker.companies.length > 0 && (
@@ -177,7 +185,7 @@ export const LifelineMarkerColumn = forwardRef<
                 })}
               </div>
 
-              {canSelectDay ? (
+              {canSelectDay && providerPhotos.length === 0 ? (
                 <button
                   type="button"
                   onClick={() => interaction?.onDaySelect?.(marker.id)}
@@ -190,7 +198,7 @@ export const LifelineMarkerColumn = forwardRef<
                     marker.events.length > 0 ? "mt-4" : "mt-0",
                   )}
                 >
-                  <Icon icon={AppIcons.plus} size={14} />
+                  <Icon icon={AppIcons.plus} size={14} strokeWidth={2.25} />
                 </button>
               ) : null}
             </div>

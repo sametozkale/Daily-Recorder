@@ -6,7 +6,6 @@ import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
 import { updateProfile } from "@/lib/actions/profile"
 import type { Profile } from "@/lib/database.types"
 
@@ -21,7 +20,7 @@ export function ProfileForm({
 
   return (
     <form
-      className="grid gap-4"
+      className="grid gap-6"
       action={(formData) => {
         startTransition(async () => {
           const result = await updateProfile(formData)
@@ -65,16 +64,7 @@ export function ProfileForm({
           placeholder="Design Engineer"
         />
       </div>
-      <div className="grid gap-2">
-        <Label htmlFor="bio">Bio</Label>
-        <Textarea
-          id="bio"
-          name="bio"
-          rows={3}
-          defaultValue={profile.bio ?? ""}
-        />
-      </div>
-      <Button type="submit" disabled={pending}>
+      <Button type="submit" disabled={pending} className="rounded-2xl">
         {pending ? "Saving…" : "Save profile"}
       </Button>
     </form>
