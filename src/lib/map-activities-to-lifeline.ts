@@ -152,6 +152,7 @@ export async function mapActivitiesToLifeline(
         ...marker,
         id: iso,
         label: formatDayLabel(utcMs, hasActivity),
+        labelFull: formatDayLabel(utcMs, true),
         age: marker.age ?? "",
       }
     }),

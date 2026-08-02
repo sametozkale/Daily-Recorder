@@ -79,6 +79,8 @@ export interface LifelineMarker {
   age?: number | string
   /** Shown in place of the raw year — e.g. "Jun 16" on a day-based timeline. */
   label?: string
+  /** Full day label revealed on hover when `label` is day-only (e.g. "Aug 23"). */
+  labelFull?: string
   events: LifelineEvent[]
   /** Small emblems (team shields etc.) rendered above the events. */
   badges?: { src: string; alt: string }[]

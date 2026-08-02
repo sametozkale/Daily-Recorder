@@ -14,6 +14,7 @@ import {
   isIsoDateId,
   useLifelineInteraction,
 } from "./lifeline-interaction"
+import { DayLabel } from "./day-label"
 import { aggregateLifelinePeople, LifelinePeople } from "./lifeline-people"
 import {
   getProviderPhotos,
@@ -92,11 +93,19 @@ export const LifelineMarkerColumn = forwardRef<
               onClick={() => interaction?.onDaySelect?.(marker.id)}
               className="mb-6 h-5 whitespace-nowrap font-runde text-[15px] font-medium leading-5 tracking-[-2%] tabular-nums text-zinc-500 transition-colors duration-300 hover:text-black group-hover:text-black dark:hover:text-white dark:group-hover:text-white"
             >
-              {marker.label ?? marker.year}
+              <DayLabel
+                label={marker.label}
+                labelFull={marker.labelFull}
+                fallback={marker.year}
+              />
             </button>
           ) : (
             <p className="mb-6 h-5 whitespace-nowrap font-runde text-[15px] font-medium leading-5 tracking-[-2%] tabular-nums text-zinc-500 transition-colors duration-300 group-hover:text-black dark:group-hover:text-white">
-              {marker.label ?? marker.year}
+              <DayLabel
+                label={marker.label}
+                labelFull={marker.labelFull}
+                fallback={marker.year}
+              />
             </p>
           )}
 

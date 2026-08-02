@@ -29,6 +29,7 @@ import {
 } from "./lifeline-lightbox"
 import { aggregateLifelinePeople, LifelinePeople } from "./lifeline-people"
 import { LifelinePhotoCard } from "./lifeline-photos"
+import { DayLabel } from "./day-label"
 import {
   getMediaPhotos,
   getProviderPhotos,
@@ -246,13 +247,23 @@ const LifelineVerticalEntry = forwardRef<
             <button
               type="button"
               onClick={() => interaction?.onDaySelect?.(marker.id)}
-              className="whitespace-nowrap text-left font-runde text-[15px] font-medium leading-5 tracking-[-2%] tabular-nums text-zinc-500 transition-colors duration-300 hover:text-black dark:text-zinc-400 dark:hover:text-white"
+              className="group/day whitespace-nowrap text-left font-runde text-[15px] font-medium leading-5 tracking-[-2%] tabular-nums text-zinc-500 transition-colors duration-300 hover:text-black dark:text-zinc-400 dark:hover:text-white"
             >
-              {marker.label ?? marker.year}
+              <DayLabel
+                label={marker.label}
+                labelFull={marker.labelFull}
+                fallback={marker.year}
+                groupHover={false}
+              />
             </button>
           ) : (
-            <p className="whitespace-nowrap font-runde text-[15px] font-medium leading-5 tracking-[-2%] tabular-nums text-zinc-500 transition-colors duration-300 dark:text-zinc-400">
-              {marker.label ?? marker.year}
+            <p className="group/day whitespace-nowrap font-runde text-[15px] font-medium leading-5 tracking-[-2%] tabular-nums text-zinc-500 transition-colors duration-300 dark:text-zinc-400">
+              <DayLabel
+                label={marker.label}
+                labelFull={marker.labelFull}
+                fallback={marker.year}
+                groupHover={false}
+              />
             </p>
           )}
         </div>
