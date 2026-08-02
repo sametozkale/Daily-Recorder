@@ -5,7 +5,11 @@ import { cn } from "@/lib/utils"
 import { LifelineDesktop } from "./lifeline-desktop"
 import { LifelineFireworksProvider } from "./lifeline-fireworks"
 import { LifelineVertical } from "./lifeline-vertical"
-import { LIFELINE_MOBILE_BREAKPOINT } from "./lifeline-layout"
+import {
+  LIFELINE_MOBILE_BREAKPOINT,
+  LIFELINE_SHORT_VIEWPORT_MAX,
+  shouldUseVerticalLifeline,
+} from "./lifeline-layout"
 import type { LifelineProps } from "./types"
 
 /**
@@ -17,25 +21,38 @@ import type { LifelineProps } from "./types"
  * `--lifeline-font` to typeset it in something else.
  */
 export function Lifeline(props: LifelineProps) {
-  const [isMobile, setIsMobile] = useState<boolean | null>(null)
+  const [isVertical, setIsVertical] = useState<boolean | null>(null)
 
   useLayoutEffect(() => {
-    // Matches Tailwind's md: breakpoint so JS and CSS can never disagree.
-    const query = window.matchMedia(
+    const widthQuery = window.matchMedia(
       `(min-width: ${LIFELINE_MOBILE_BREAKPOINT}px)`,
     )
-    const update = () => setIsMobile(!query.matches)
+    const coarseQuery = window.matchMedia("(pointer: coarse)")
+    const hoverQuery = window.matchMedia("(hover: none)")
+    const shortQuery = window.matchMedia(
+      `(max-height: ${LIFELINE_SHORT_VIEWPORT_MAX}px)`,
+    )
+
+    const update = () => setIsVertical(shouldUseVerticalLifeline())
 
     update()
-    query.addEventListener("change", update)
-    return () => query.removeEventListener("change", update)
+    widthQuery.addEventListener("change", update)
+    coarseQuery.addEventListener("change", update)
+    hoverQuery.addEventListener("change", update)
+    shortQuery.addEventListener("change", update)
+    return () => {
+      widthQuery.removeEventListener("change", update)
+      coarseQuery.removeEventListener("change", update)
+      hoverQuery.removeEventListener("change", update)
+      shortQuery.removeEventListener("change", update)
+    }
   }, [])
 
-  if (isMobile === null) {
+  if (isVertical === null) {
     return <div className="invisible h-full" aria-hidden="true" />
   }
 
-  if (isMobile) {
+  if (isVertical) {
     return (
       <LifelineFireworksProvider>
         {/*

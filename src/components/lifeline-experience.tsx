@@ -86,7 +86,7 @@ export function LifelineExperience({
         <LifelinePublicCornerActions />
       )}
 
-      <LifelineStage className="pt-[4.25rem] md:pt-0">
+      <LifelineStage className="pt-[max(4.25rem,calc(env(safe-area-inset-top)+3.5rem))] md:pt-0">
         <Lifeline
           markers={markers}
           birthYear={birthYear}

@@ -366,20 +366,23 @@
     height: var(--stack-scroll-h);
   }
 
+  /*
+   * Touch / no-hover: expand in flow (same as --expanded), not as an absolute
+   * overlay. Absolute expand was clipped by the stage’s overflow:hidden on
+   * tablets and phone-landscape desktop paths.
+   */
   @media (hover: none) {
     .provider-card-stack:not(.provider-card-stack--expanded) {
       width: var(--stack-expanded-w, auto);
-      height: var(--stack-collapsed);
+      height: min(var(--stack-scroll-h), var(--stack-max));
+      overflow: visible;
     }
 
     .provider-card-stack:not(.provider-card-stack--expanded)
       .provider-card-stack__scroll {
-      position: absolute;
-      top: 0;
-      left: 0;
-      z-index: 30;
-      width: var(--stack-expanded-w, auto);
-      height: min(var(--stack-scroll-h), var(--stack-max));
+      position: relative;
+      width: 100%;
+      height: 100%;
       overflow-x: hidden;
       overflow-y: auto;
       overscroll-behavior: contain;

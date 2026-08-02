@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo, type CSSProperties } from "react"
+import { useLayoutEffect, useMemo, useState, type CSSProperties } from "react"
 import { AppIcons, Icon } from "@/components/icon"
 import { cn } from "@/lib/utils"
 import {
@@ -56,6 +56,15 @@ export function LifelineDesktop({
 
   const intro = useLifelineIntro(widths)
   const isIntroAnimating = intro.shouldPlay && intro.isPlaying
+  const [isCoarsePointer, setIsCoarsePointer] = useState(false)
+
+  useLayoutEffect(() => {
+    const query = window.matchMedia("(pointer: coarse)")
+    const update = () => setIsCoarsePointer(query.matches)
+    update()
+    query.addEventListener("change", update)
+    return () => query.removeEventListener("change", update)
+  }, [])
 
   const {
     sectionRef,
@@ -69,6 +78,7 @@ export function LifelineDesktop({
     scrollToToday,
   } = useLifelineScroll(markers.length, {
     mode,
+    isCoarsePointer,
     introLocked: isIntroAnimating,
     introAnimating: isIntroAnimating,
     introSkipped: !intro.shouldPlay,
@@ -201,7 +211,8 @@ export function LifelineDesktop({
           onClick={scrollToToday}
           data-lifeline-interactive=""
           className={cn(
-            "pointer-events-auto absolute bottom-6 z-40 inline-flex items-center gap-1.5",
+            "pointer-events-auto absolute z-40 inline-flex items-center gap-1.5",
+            "bottom-[max(1.5rem,env(safe-area-inset-bottom))] ",
             "rounded-2xl bg-white px-3 py-2 font-runde text-xs font-medium tracking-[-2%] text-zinc-700",
             "shadow-[0_8px_24px_-12px_rgb(0_0_0/0.22)] ring-1 ring-[#f4f4f4]",
             "transition-[color,background-color,opacity,transform] duration-200",
@@ -209,8 +220,8 @@ export function LifelineDesktop({
             "dark:bg-zinc-900 dark:text-zinc-200 dark:ring-white/10 dark:hover:bg-zinc-800 dark:hover:text-white",
             // Past → return rightward; future → return leftward.
             todayNav === "past"
-              ? "left-5 md:left-8"
-              : "right-5 md:right-8",
+              ? "left-[max(1.25rem,env(safe-area-inset-left))] md:left-8"
+              : "right-[max(1.25rem,env(safe-area-inset-right))] md:right-8",
           )}
         >
           {todayNav === "future" ? (

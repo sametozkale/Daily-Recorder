@@ -56,7 +56,7 @@ export function LifelineCornerName({
   return (
     <div
       data-lifeline-corner-name
-      className="pointer-events-auto fixed left-5 top-5 z-50 md:left-8 md:top-6"
+      className="pointer-events-auto fixed top-[max(1.25rem,env(safe-area-inset-top))] left-[max(1.25rem,env(safe-area-inset-left))] z-50 md:top-6 md:left-8"
     >
       {href ? (
         <Link
@@ -74,7 +74,7 @@ export function LifelineCornerName({
 
 export function LifelinePublicCornerActions() {
   return (
-    <div className="pointer-events-auto fixed right-5 top-5 z-50 md:right-8 md:top-6">
+    <div className="pointer-events-auto fixed top-[max(1.25rem,env(safe-area-inset-top))] right-[max(1.25rem,env(safe-area-inset-right))] z-50 md:top-6 md:right-8">
       <ThemeSwitcher />
     </div>
   )
@@ -90,7 +90,7 @@ export function LifelineOwnerCornerActions({
   onAddActivity: () => void
 }) {
   return (
-    <div className="pointer-events-auto fixed right-5 top-5 z-50 flex items-center gap-1.5 md:right-8 md:top-6">
+    <div className="pointer-events-auto fixed top-[max(1.25rem,env(safe-area-inset-top))] right-[max(1.25rem,env(safe-area-inset-right))] z-50 flex items-center gap-1.5 md:top-6 md:right-8">
       <button
         type="button"
         onClick={onAddActivity}

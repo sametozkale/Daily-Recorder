@@ -527,13 +527,16 @@ export function LifelineVertical({
           onClick={scrollToToday}
           data-lifeline-interactive=""
           className={cn(
-            "pointer-events-auto fixed bottom-6 z-40 inline-flex items-center gap-1.5",
+            "pointer-events-auto fixed z-40 inline-flex items-center gap-1.5",
+            "bottom-[max(1.5rem,env(safe-area-inset-bottom))]",
             "rounded-2xl bg-white px-3 py-2 font-runde text-xs font-medium tracking-[-2%] text-zinc-700",
             "shadow-[0_8px_24px_-12px_rgb(0_0_0/0.22)] ring-1 ring-[#f4f4f4]",
             "transition-[color,background-color] duration-200",
             "hover:bg-zinc-50 hover:text-black",
             "dark:bg-zinc-900 dark:text-zinc-200 dark:ring-white/10 dark:hover:bg-zinc-800 dark:hover:text-white",
-            todayNav === "past" ? "left-4" : "right-4",
+            todayNav === "past"
+              ? "left-[max(1rem,env(safe-area-inset-left))]"
+              : "right-[max(1rem,env(safe-area-inset-right))]",
           )}
         >
           {todayNav === "future" ? (

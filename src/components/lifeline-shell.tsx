@@ -83,8 +83,9 @@ export function LifelineNav({
 }
 
 /**
- * The stage. `pt-16` clears the fixed nav; `md:overflow-hidden` hands
- * scrolling to the horizontal scrub above the mobile breakpoint.
+ * The stage. Vertical timelines scroll here; the desktop rail fills
+ * `h-full` with its own `overflow-hidden`, so leaving `overflow-y-auto`
+ * on always keeps phone-landscape vertical usable past the md width cut.
  */
 export function LifelineStage({
   children,
@@ -96,7 +97,7 @@ export function LifelineStage({
   return (
     <main
       className={cn(
-        "flex-1 min-h-0 overflow-y-auto pt-16 md:overflow-hidden",
+        "min-h-0 flex-1 overflow-y-auto overscroll-y-contain pt-16",
         className,
       )}
     >
